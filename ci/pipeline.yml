@@ -1,0 +1,49 @@
+resources:
+  - name: petshop
+    type: git
+    source:
+      uri: https://github.com/hemanth-bavirisetty/petshop
+      branch: main
+
+jobs:
+  - name: test
+    plan:
+      - get: petshop
+        trigger: true
+      - task: pytest
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: { repository: python, tag: "3.12-slim" }
+          inputs:
+            - name: petshop
+          run:
+            path: sh
+            args:
+              - -c
+              - |
+                cd petshop/backend
+                pip install -r requirements.txt
+                pytest
+
+  - name: build
+    plan:
+      - get: petshop
+        trigger: true
+        passed: [test]
+      - task: build-backend-image
+        privileged: true
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: { repository: concourse/oci-build-task }
+          inputs:
+            - name: petshop
+          outputs:
+            - name: image
+          params:
+            CONTEXT: petshop/backend
+          run:
+            path: build
