@@ -1,0 +1,21 @@
+# --- Python / Flask ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+instance/
+*.db
+.pytest_cache/
+.coverage
+
+# --- Node / React ---
+node_modules/
+dist/
+*.local
+
+# --- Editors / OS ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
