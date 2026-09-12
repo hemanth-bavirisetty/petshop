@@ -2,7 +2,7 @@ resources:
   - name: petshop
     type: git
     source:
-      uri: https://github.com/hemanth-bavirisetty/petshop
+      uri: https://github.com/hemanth-bavirisetty/petshop.git
       branch: main
 
 jobs:
@@ -16,22 +16,87 @@ jobs:
           image_resource:
             type: registry-image
             source: { repository: python, tag: "3.12-slim" }
-          inputs:
-            - name: petshop
+          inputs: [{ name: petshop }]
+          run:
+            path: sh
+            args: [-c, "cd petshop/backend && pip install -r requirements.txt && pytest"]
+
+  - name: owasp
+    plan:
+      - get: petshop
+        trigger: true
+        passed: [test]
+      - task: dependency-check
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: { repository: owasp/dependency-check, tag: "12" }
+          inputs: [{ name: petshop }]
+          outputs: [{ name: report }]
           run:
             path: sh
             args:
               - -c
               - |
-                cd petshop/backend
-                pip install -r requirements.txt
-                pytest
+                /usr/share/dependency-check/bin/dependency-check.sh \
+                  --project petshop --scan petshop/backend \
+                  --out report --format HTML --format JSON || true
+
+  - name: sonar
+    plan:
+      - get: petshop
+        trigger: true
+        passed: [owasp]
+      - task: scan
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: { repository: sonarsource/sonar-scanner-cli }
+          inputs: [{ name: petshop }]
+          params:
+            SONAR_HOST_URL: http://host.docker.internal:9000
+            SONAR_TOKEN: ((sonar-token))
+          run:
+            path: sh
+            args: [-c, "cd petshop && sonar-scanner"]
+
+  - name: quality-gate
+    plan:
+      - get: petshop
+        trigger: true
+        passed: [sonar]
+      - task: check
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source: { repository: curlimages/curl }
+          params:
+            SONAR_HOST_URL: http://host.docker.internal:9000
+            SONAR_TOKEN: ((sonar-token))
+          run:
+            path: sh
+            args:
+              - -c
+              - |
+                for i in $(seq 1 12); do
+                  STATUS=$(curl -s -u "$SONAR_TOKEN:" \
+                    "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=petshop" \
+                    | grep -o '"status":"[A-Z]*"' | cut -d'"' -f4)
+                  echo "quality gate: $STATUS"
+                  [ "$STATUS" = "OK" ] && exit 0
+                  { [ "$STATUS" = "ERROR" ] || [ "$STATUS" = "WARN" ]; } && exit 1
+                  sleep 5
+                done
+                echo "timed out waiting for quality gate"; exit 1
 
   - name: build
     plan:
       - get: petshop
         trigger: true
-        passed: [test]
+        passed: [quality-gate]          # ← build is now gated on everything
       - task: build-backend-image
         privileged: true
         config:
@@ -39,10 +104,8 @@ jobs:
           image_resource:
             type: registry-image
             source: { repository: concourse/oci-build-task }
-          inputs:
-            - name: petshop
-          outputs:
-            - name: image
+          inputs: [{ name: petshop }]
+          outputs: [{ name: image }]
           params:
             CONTEXT: petshop/backend
           run:

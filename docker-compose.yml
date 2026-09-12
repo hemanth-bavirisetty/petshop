@@ -19,6 +19,7 @@ services:
       POSTGRES_PASSWORD: concourse
 
   concourse:
+    restart: unless-stopped
     image: concourse/concourse:8.3
     platform: linux/arm64       
     command: quickstart
@@ -33,6 +34,28 @@ services:
       CONCOURSE_EXTERNAL_URL: http://localhost:8080
       CONCOURSE_ADD_LOCAL_USER: admin:admin
       CONCOURSE_MAIN_TEAM_LOCAL_USER: admin
-      CONCOURSE_WORKER_RUNTIME: containerd 
+      CONCOURSE_WORKER_RUNTIME: containerd
+      CONCOURSE_WORKER_CONTAINERD_DNS_PROXY_ENABLE: "true"
     depends_on:
       - concourse-db
+
+  sonar-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: sonar
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+
+  sonarqube:
+    image: sonarqube    # native arm64 — no emulation needed
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+      SONAR_SEARCH_JAVAOPTS: "-Xmx512m -Xms512m"
+      SONAR_WEB_JAVAOPTS: "-Xmx768m -Xms256m"
+      SONAR_CE_JAVAOPTS: "-Xmx512m -Xms256m"
+    depends_on:
+      - sonar-db
