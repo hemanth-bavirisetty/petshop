@@ -19,3 +19,4 @@ dist/
 .idea/
 .vscode/
 *.swp
+/Users/mani/Documents/Hemanth Space/Career/KubernetesHandsOn/petshop/backend/.venv/lib/python3.9/site-packages/markupsafe-3.0.3.dist-info/WHEEL
