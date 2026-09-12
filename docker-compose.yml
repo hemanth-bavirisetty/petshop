@@ -19,7 +19,7 @@ services:
       POSTGRES_PASSWORD: concourse
 
   concourse:
-    restart: unless-stopped
+    #restart: unless-stopped
     image: concourse/concourse:8.3
     platform: linux/arm64       
     command: quickstart
@@ -34,7 +34,7 @@ services:
       CONCOURSE_EXTERNAL_URL: http://localhost:8080
       CONCOURSE_ADD_LOCAL_USER: admin:admin
       CONCOURSE_MAIN_TEAM_LOCAL_USER: admin
-      CONCOURSE_WORKER_RUNTIME: containerd
+      #CONCOURSE_WORKER_RUNTIME: containerd
       CONCOURSE_WORKER_CONTAINERD_DNS_PROXY_ENABLE: "true"
     depends_on:
       - concourse-db

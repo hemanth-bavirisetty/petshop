@@ -25,23 +25,52 @@ jobs:
     plan:
       - get: petshop
         trigger: true
-        passed: [test]
+        passed:
+          - test
+
       - task: dependency-check
         config:
           platform: linux
+
           image_resource:
             type: registry-image
-            source: { repository: owasp/dependency-check, tag: "12" }
-          inputs: [{ name: petshop }]
-          outputs: [{ name: report }]
+            source:
+              repository: owasp/dependency-check
+              tag: "12.1.0"
+
+          inputs:
+            - name: petshop
+
+          outputs:
+            - name: report
+
           run:
             path: sh
             args:
               - -c
               - |
+                set -eux
+
+                echo "=== Working directory ==="
+                pwd
+
+                echo "=== Repository ==="
+                ls -lah petshop
+                ls -lah petshop/backend
+
+                echo "=== Dependency Check version ==="
+                /usr/share/dependency-check/bin/dependency-check.sh --version
+
+                echo "=== Starting scan ==="
                 /usr/share/dependency-check/bin/dependency-check.sh \
-                  --project petshop --scan petshop/backend \
-                  --out report --format HTML --format JSON || true
+                  --project petshop \
+                  --scan petshop/backend \
+                  --out report \
+                  --format HTML \
+                  --format JSON
+
+                echo "=== Reports ==="
+                ls -lah report
 
   - name: sonar
     plan:
