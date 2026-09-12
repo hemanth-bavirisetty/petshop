@@ -7,6 +7,32 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "8080:80"
+      - "8081:80"          
     depends_on:
       - backend
+
+  concourse-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: concourse
+      POSTGRES_USER: concourse
+      POSTGRES_PASSWORD: concourse
+
+  concourse:
+    image: concourse/concourse:8.3
+    platform: linux/arm64       
+    command: quickstart
+    privileged: true
+    ports:
+      - "8080:8080"
+    environment:
+      CONCOURSE_POSTGRES_HOST: concourse-db
+      CONCOURSE_POSTGRES_USER: concourse
+      CONCOURSE_POSTGRES_PASSWORD: concourse
+      CONCOURSE_POSTGRES_DATABASE: concourse
+      CONCOURSE_EXTERNAL_URL: http://localhost:8080
+      CONCOURSE_ADD_LOCAL_USER: admin:admin
+      CONCOURSE_MAIN_TEAM_LOCAL_USER: admin
+      CONCOURSE_WORKER_RUNTIME: containerd 
+    depends_on:
+      - concourse-db
